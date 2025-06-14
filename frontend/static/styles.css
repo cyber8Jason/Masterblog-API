@@ -19,14 +19,17 @@ body {
     margin: auto;
 }
 
-.input-field {
+.input-field, .sort-field {
     display: flex;
     align-items: center;
     margin-bottom: 20px;
+    gap: 10px;
 }
 
 .input-field input,
-.input-field button {
+.input-field button,
+.sort-field select,
+.sort-field button {
     height: 40px;
     padding: 10px;
     font-size: 16px;
@@ -36,22 +39,26 @@ body {
     transition: box-shadow 0.5s ease;
 }
 
-.input-field input {
+.input-field input,
+.sort-field select {
     flex-grow: 1;
-    margin-right: 10px;
+    background-color: #f5f5f5;
 }
 
 .input-field input::placeholder {
     color: #aaa;
 }
 
-.input-field button {
+.input-field button,
+.sort-field button {
     background-color: #4466ee;
     color: #fff;
     cursor: pointer;
+    min-width: 120px;
 }
 
-.input-field button:hover {
+.input-field button:hover,
+.sort-field button:hover {
     background-color: #3355dd;
 }
 
@@ -67,6 +74,13 @@ body {
     margin: 0;
     color: #4466ee;
     font-weight: 700;
+}
+
+.post-meta {
+    color: #666;
+    font-size: 0.9em;
+    margin: 5px 0;
+    font-style: italic;
 }
 
 .post p {

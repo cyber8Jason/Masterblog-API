@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
@@ -20,8 +21,20 @@ swagger_ui_blueprint = get_swaggerui_blueprint(
 app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
 
 POSTS = [
-    {"id": 1, "title": "First post", "content": "This is the first post."},
-    {"id": 2, "title": "Second post", "content": "This is the second post."}
+    {
+        "id": 1,
+        "title": "First post",
+        "content": "This is the first post.",
+        "author": "John Doe",
+        "date": "2023-06-14"
+    },
+    {
+        "id": 2,
+        "title": "Second post",
+        "content": "This is the second post.",
+        "author": "Jane Smith",
+        "date": "2023-06-15"
+    }
 ]
 
 
@@ -32,8 +45,9 @@ def get_posts():
     sort_direction = request.args.get('direction', 'asc')  # Default is ascending
 
     # Validate parameters
-    if sort_field and sort_field not in ['title', 'content']:
-        return jsonify({'error': 'Invalid sort field. Must be "title" or "content"'}), 400
+    valid_sort_fields = ['title', 'content', 'author', 'date']
+    if sort_field and sort_field not in valid_sort_fields:
+        return jsonify({'error': f'Invalid sort field. Must be one of: {", ".join(valid_sort_fields)}'}), 400
 
     if sort_direction not in ['asc', 'desc']:
         return jsonify({'error': 'Invalid sort direction. Must be "asc" or "desc"'}), 400
@@ -43,10 +57,17 @@ def get_posts():
 
     # Sort posts if a sort field is specified
     if sort_field:
-        sorted_posts.sort(
-            key=lambda x: x[sort_field].lower(),  # Case-insensitive sorting
-            reverse=(sort_direction == 'desc')  # Reverse order for 'desc'
-        )
+        # Special handling for date field
+        if sort_field == 'date':
+            sorted_posts.sort(
+                key=lambda x: datetime.strptime(x[sort_field], '%Y-%m-%d'),
+                reverse=(sort_direction == 'desc')
+            )
+        else:
+            sorted_posts.sort(
+                key=lambda x: x[sort_field].lower(),  # Case-insensitive sorting
+                reverse=(sort_direction == 'desc')  # Reverse order for 'desc'
+            )
 
     return jsonify(sorted_posts)
 
@@ -56,11 +77,19 @@ def create_post():
     # Get data from request body
     data = request.get_json()
 
+    # Validate required fields
+    required_fields = ['title', 'content', 'author']
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
+
     # Create new post
     new_post = {
-        'id': len(POSTS) + 1,  # Set ID to next available number
+        'id': max(post['id'] for post in POSTS) + 1,
         'title': data['title'],
-        'content': data['content']
+        'content': data['content'],
+        'author': data['author'],
+        'date': data.get('date', datetime.now().strftime('%Y-%m-%d'))  # Use current date if not provided
     }
 
     # Add post to list
@@ -104,11 +133,17 @@ def update_post(post_id):
     # Get data from request body
     data = request.get_json()
 
-    # Update only the fields that are present in the request
-    if data.get('title') is not None:
-        post_to_update['title'] = data['title']
-    if data.get('content') is not None:
-        post_to_update['content'] = data['content']
+    # Update fields that are present in the request
+    updateable_fields = ['title', 'content', 'author', 'date']
+    for field in updateable_fields:
+        if field in data:
+            # Validate date format if updating date
+            if field == 'date':
+                try:
+                    datetime.strptime(data[field], '%Y-%m-%d')
+                except ValueError:
+                    return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+            post_to_update[field] = data[field]
 
     return jsonify(post_to_update), 200
 
@@ -118,13 +153,16 @@ def search_posts():
     # Get search parameters from URL
     title_query = request.args.get('title', '').lower()
     content_query = request.args.get('content', '').lower()
+    author_query = request.args.get('author', '').lower()
+    date_query = request.args.get('date', '')
 
     # Filter posts based on search criteria
     matching_posts = []
     for post in POSTS:
-        # Check if title or content contains the search term
-        if (title_query and title_query in post['title'].lower()) or \
-           (content_query and content_query in post['content'].lower()):
+        if ((title_query and title_query in post['title'].lower()) or
+            (content_query and content_query in post['content'].lower()) or
+            (author_query and author_query in post['author'].lower()) or
+            (date_query and date_query in post['date'])):
             matching_posts.append(post)
 
     return jsonify(matching_posts)
