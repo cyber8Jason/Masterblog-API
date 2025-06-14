@@ -18,24 +18,13 @@ def get_posts():
 
 
 @app.route('/api/posts', methods=['POST'])
-def add_post():
+def create_post():
+    # Hole die Daten aus dem Request-Body
     data = request.get_json()
 
-    # Überprüfe, ob title und content vorhanden sind
-    if not data or 'title' not in data or 'content' not in data:
-        missing_fields = []
-        if not data or 'title' not in data:
-            missing_fields.append('title')
-        if not data or 'content' not in data:
-            missing_fields.append('content')
-        return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
-
-    # Generiere eine neue ID (höchste vorhandene ID + 1)
-    new_id = max(post['id'] for post in POSTS) + 1
-
-    # Erstelle neuen Post
+    # Erstelle einen neuen Post
     new_post = {
-        'id': new_id,
+        'id': len(POSTS) + 1,  # Setze die ID auf die nächste verfügbare Zahl
         'title': data['title'],
         'content': data['content']
     }
@@ -90,5 +79,23 @@ def update_post(post_id):
     return jsonify(post_to_update), 200
 
 
+@app.route('/api/posts/search', methods=['GET'])
+def search_posts():
+    # Hole die Suchparameter aus der URL
+    title_query = request.args.get('title', '').lower()
+    content_query = request.args.get('content', '').lower()
+
+    # Filtere die Posts basierend auf den Suchkriterien
+    matching_posts = []
+    for post in POSTS:
+        # Prüfe, ob der Titel oder Content den Suchbegriff enthält
+        if (title_query and title_query in post['title'].lower()) or \
+           (content_query and content_query in post['content'].lower()):
+            matching_posts.append(post)
+
+    return jsonify(matching_posts)
+
+
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5002, debug=True)
+
