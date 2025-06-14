@@ -2,6 +2,9 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 from datetime import datetime
+import json
+import os
+
 
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
@@ -20,22 +23,36 @@ swagger_ui_blueprint = get_swaggerui_blueprint(
 )
 app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
 
-POSTS = [
-    {
-        "id": 1,
-        "title": "First post",
-        "content": "This is the first post.",
-        "author": "John Doe",
-        "date": "2023-06-14"
-    },
-    {
-        "id": 2,
-        "title": "Second post",
-        "content": "This is the second post.",
-        "author": "Jane Smith",
-        "date": "2023-06-15"
-    }
-]
+
+# Constants
+POSTS_FILE = os.path.join(os.path.dirname(__file__), 'data', 'posts.json')
+
+
+def load_posts():
+    """Load posts from JSON file"""
+    try:
+        if not os.path.exists(POSTS_FILE):
+            return {"posts": []}
+        with open(POSTS_FILE, 'r') as file:
+            return json.load(file)
+    except json.JSONDecodeError:
+        return {"posts": []}
+    except Exception as e:
+        print(f"Error loading posts: {e}")
+        return {"posts": []}
+
+
+def save_posts(posts_data):
+    """Save posts to JSON file"""
+    try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(POSTS_FILE), exist_ok=True)
+        with open(POSTS_FILE, 'w') as file:
+            json.dump(posts_data, file, indent=4)
+        return True
+    except Exception as e:
+        print(f"Error saving posts: {e}")
+        return False
 
 
 @app.route('/api/posts', methods=['GET'])
@@ -52,12 +69,12 @@ def get_posts():
     if sort_direction not in ['asc', 'desc']:
         return jsonify({'error': 'Invalid sort direction. Must be "asc" or "desc"'}), 400
 
-    # Create a copy of the posts list for sorting
-    sorted_posts = POSTS.copy()
+    # Load posts from file
+    posts_data = load_posts()
+    sorted_posts = posts_data['posts'].copy()
 
     # Sort posts if a sort field is specified
     if sort_field:
-        # Special handling for date field
         if sort_field == 'date':
             sorted_posts.sort(
                 key=lambda x: datetime.strptime(x[sort_field], '%Y-%m-%d'),
@@ -83,26 +100,37 @@ def create_post():
     if missing_fields:
         return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
 
+    # Load existing posts
+    posts_data = load_posts()
+
+    # Generate new ID (max ID + 1)
+    new_id = max([post['id'] for post in posts_data['posts']] + [0]) + 1
+
     # Create new post
     new_post = {
-        'id': max(post['id'] for post in POSTS) + 1,
+        'id': new_id,
         'title': data['title'],
         'content': data['content'],
         'author': data['author'],
-        'date': data.get('date', datetime.now().strftime('%Y-%m-%d'))  # Use current date if not provided
+        'date': data.get('date', datetime.now().strftime('%Y-%m-%d'))
     }
 
-    # Add post to list
-    POSTS.append(new_post)
+    # Add post and save
+    posts_data['posts'].append(new_post)
+    if not save_posts(posts_data):
+        return jsonify({'error': 'Failed to save post'}), 500
 
     return jsonify(new_post), 201
 
 
 @app.route('/api/posts/<int:post_id>', methods=['DELETE'])
 def delete_post(post_id):
-    # Find post with given ID
+    # Load posts
+    posts_data = load_posts()
+
+    # Find post index
     post_index = None
-    for index, post in enumerate(POSTS):
+    for index, post in enumerate(posts_data['posts']):
         if post['id'] == post_id:
             post_index = index
             break
@@ -111,17 +139,22 @@ def delete_post(post_id):
     if post_index is None:
         return jsonify({'error': f'Post with id {post_id} not found'}), 404
 
-    # Delete post from list
-    POSTS.pop(post_index)
+    # Remove post and save
+    posts_data['posts'].pop(post_index)
+    if not save_posts(posts_data):
+        return jsonify({'error': 'Failed to delete post'}), 500
 
     return jsonify({'message': f'Post with id {post_id} has been deleted successfully.'}), 200
 
 
 @app.route('/api/posts/<int:post_id>', methods=['PUT'])
 def update_post(post_id):
-    # Find post with given ID
+    # Load posts
+    posts_data = load_posts()
+
+    # Find post
     post_to_update = None
-    for post in POSTS:
+    for post in posts_data['posts']:
         if post['id'] == post_id:
             post_to_update = post
             break
@@ -137,13 +170,16 @@ def update_post(post_id):
     updateable_fields = ['title', 'content', 'author', 'date']
     for field in updateable_fields:
         if field in data:
-            # Validate date format if updating date
             if field == 'date':
                 try:
                     datetime.strptime(data[field], '%Y-%m-%d')
                 except ValueError:
                     return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
             post_to_update[field] = data[field]
+
+    # Save changes
+    if not save_posts(posts_data):
+        return jsonify({'error': 'Failed to update post'}), 500
 
     return jsonify(post_to_update), 200
 
@@ -156,9 +192,12 @@ def search_posts():
     author_query = request.args.get('author', '').lower()
     date_query = request.args.get('date', '')
 
+    # Load posts from file
+    posts_data = load_posts()
+
     # Filter posts based on search criteria
     matching_posts = []
-    for post in POSTS:
+    for post in posts_data['posts']:
         if ((title_query and title_query in post['title'].lower()) or
             (content_query and content_query in post['content'].lower()) or
             (author_query and author_query in post['author'].lower()) or
