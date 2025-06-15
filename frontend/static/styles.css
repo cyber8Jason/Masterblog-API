@@ -67,13 +67,16 @@ body {
     background-color: #f5f5f5;
     margin-bottom: 20px;
     padding: 20px;
+    padding-bottom: 60px;  /* Erhöhter Abstand zum unteren Rand */
     position: relative;
+    min-height: 160px;  /* Ensure space for bottom button */
 }
 
 .post h2 {
     margin: 0;
     color: #4466ee;
     font-weight: 700;
+    padding-right: 60px;  /* Make space for the like button */
 }
 
 .post-meta {
@@ -88,18 +91,197 @@ body {
     color: #333;
 }
 
-.post button {
+.post-actions-top {
     position: absolute;
     top: 10px;
     right: 10px;
-    background-color: #ff4444;
-    color: #fff;
-    border: none;
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 10px;  /* Gleicher Abstand wie beim Delete-Button */
+}
+
+.post-actions-bottom {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    padding-left: 20px;
+    padding-right: 10px;
+}
+
+.post-actions-bottom-left {
+    display: flex;
+    gap: 10px;
+}
+
+.post button.delete-btn,
+.post button.like-btn,
+.post button.comment-btn,
+.post button.edit-btn {
     padding: 5px 10px;
+    border: none;
     border-radius: 5px;
+    cursor: pointer;
+    color: #fff;
+    min-width: 90px;  /* Gleiche Mindestbreite für alle Buttons */
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.post button.delete-btn {
+    background-color: #ff4444;
+}
+
+.post button.delete-btn:hover {
+    background-color: #cc0000;
+    box-shadow: 0px 4px 8px rgba(0,0,0,0.2);
+    transform: translateY(-1px);
+}
+
+.post button.like-btn {
+    background-color: #ff66aa;
+    gap: 5px;
+    min-width: 70px;  /* Verringerte Mindestbreite speziell für den Like-Button */
+}
+
+.post button.like-btn:hover {
+    background-color: #ff3377;
+    box-shadow: 0px 4px 8px rgba(0,0,0,0.2);
+    transform: translateY(-1px);
+}
+
+.post button.comment-btn {
+    background-color: #4466ee;
+    margin-left: 0;
+}
+
+.post button.comment-btn:hover {
+    background-color: #3355dd;
+    box-shadow: 0px 4px 8px rgba(0,0,0,0.2);
+    transform: translateY(-1px);
+}
+
+.post button.edit-btn {
+    background-color: #44aa44;
+}
+
+.post button.edit-btn:hover {
+    background-color: #338833;
+    box-shadow: 0px 4px 8px rgba(0,0,0,0.2);
+    transform: translateY(-1px);
+}
+
+.comment-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+}
+
+.comment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.comment-form input,
+.comment-form textarea {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.comment-form textarea {
+    height: 80px;
+    resize: vertical;
+}
+
+.comment-form button {
+    align-self: flex-start;
+    padding: 8px 16px;
+    background-color: #4466ee;
+    color: white;
+    border: none;
+    border-radius: 4px;
     cursor: pointer;
 }
 
-.post button:hover {
-    background-color: #cc0000;
+.comment-form button:hover {
+    background-color: #3355dd;
+}
+
+.comments-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.comment {
+    background-color: white;
+    padding: 15px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.comment-text {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+}
+
+.comment-meta {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+}
+
+.edit-mode {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.edit-mode input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.edit-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.edit-actions button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: white;
+}
+
+.edit-actions .save-btn {
+    background-color: #44aa44;
+}
+
+.edit-actions .save-btn:hover {
+    background-color: #338833;
+}
+
+.edit-actions .cancel-btn {
+    background-color: #666666;
+}
+
+.edit-actions .cancel-btn:hover {
+    background-color: #444444;
 }

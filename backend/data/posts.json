@@ -5,15 +5,24 @@
             "title": "First post",
             "content": "This is the first post.",
             "author": "John Doe",
-            "date": "2023-06-14"
+            "date": "2023-06-14",
+            "likes": 11
         },
         {
             "id": 2,
             "title": "Second post",
             "content": "This is the second post.",
             "author": "Jane Smith",
-            "date": "2023-06-15"
+            "date": "2023-06-15",
+            "likes": 1
+        },
+        {
+            "id": 3,
+            "title": "Masterblog API",
+            "content": "https://github.com/cyber8Jason/Masterblog-API",
+            "author": "cyber8jason",
+            "date": "2025-06-15",
+            "likes": 1
         }
     ]
 }
-

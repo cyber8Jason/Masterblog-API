@@ -112,7 +112,8 @@ def create_post():
         'title': data['title'],
         'content': data['content'],
         'author': data['author'],
-        'date': data.get('date', datetime.now().strftime('%Y-%m-%d'))
+            'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
+        'likes': 0  # Initialize likes
     }
 
     # Add post and save
@@ -205,6 +206,99 @@ def search_posts():
             matching_posts.append(post)
 
     return jsonify(matching_posts)
+
+
+@app.route('/api/posts/<int:post_id>/like', methods=['POST'])
+def like_post(post_id):
+    # Load posts
+    posts_data = load_posts()
+
+    # Find post
+    post_to_like = None
+    for post in posts_data['posts']:
+        if post['id'] == post_id:
+            post_to_like = post
+            break
+
+    # If no post found, return 404
+    if post_to_like is None:
+        return jsonify({'error': f'Post with id {post_id} not found'}), 404
+
+    # Initialize likes if not present
+    if 'likes' not in post_to_like:
+        post_to_like['likes'] = 0
+
+    # Increment likes
+    post_to_like['likes'] += 1
+
+    # Save changes
+    if not save_posts(posts_data):
+        return jsonify({'error': 'Failed to update likes'}), 500
+
+    return jsonify({'likes': post_to_like['likes']}), 200
+
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
+def add_comment(post_id):
+    # Load posts
+    posts_data = load_posts()
+
+    # Find post
+    post_to_comment = None
+    for post in posts_data['posts']:
+        if post['id'] == post_id:
+            post_to_comment = post
+            break
+
+    # If no post found, return 404
+    if post_to_comment is None:
+        return jsonify({'error': f'Post with id {post_id} not found'}), 404
+
+    # Get comment data
+    data = request.get_json()
+    if not data or 'text' not in data or 'author' not in data:
+        return jsonify({'error': 'Comment must include text and author'}), 400
+
+    # Initialize comments list if it doesn't exist
+    if 'comments' not in post_to_comment:
+        post_to_comment['comments'] = []
+
+    # Create new comment
+    new_comment = {
+        'id': len(post_to_comment['comments']) + 1,
+        'text': data['text'],
+        'author': data['author'],
+        'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    # Add comment to post
+    post_to_comment['comments'].append(new_comment)
+
+    # Save changes
+    if not save_posts(posts_data):
+        return jsonify({'error': 'Failed to save comment'}), 500
+
+    return jsonify(new_comment), 201
+
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
+def get_comments(post_id):
+    # Load posts
+    posts_data = load_posts()
+
+    # Find post
+    post = None
+    for p in posts_data['posts']:
+        if p['id'] == post_id:
+            post = p
+            break
+
+    # If no post found, return 404
+    if post is None:
+        return jsonify({'error': f'Post with id {post_id} not found'}), 404
+
+    # Return comments (empty list if no comments yet)
+    return jsonify(post.get('comments', []))
 
 
 if __name__ == '__main__':
