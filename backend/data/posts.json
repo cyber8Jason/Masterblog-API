@@ -6,7 +6,8 @@
             "content": "This is the first post.",
             "author": "John Doe",
             "date": "2023-06-14",
-            "likes": 11
+            "likes": 11,
+            "comments": []
         },
         {
             "id": 2,
@@ -14,7 +15,8 @@
             "content": "This is the second post.",
             "author": "Jane Smith",
             "date": "2023-06-15",
-            "likes": 1
+            "likes": 1,
+            "comments": []
         },
         {
             "id": 3,
@@ -22,7 +24,35 @@
             "content": "https://github.com/cyber8Jason/Masterblog-API",
             "author": "cyber8jason",
             "date": "2025-06-15",
-            "likes": 1
+            "likes": 1,
+            "comments": []
+        },
+        {
+            "id": 4,
+            "title": "test",
+            "content": "hi",
+            "author": "Jason",
+            "date": "2025-06-15",
+            "likes": 0,
+            "comments": []
+        },
+        {
+            "id": 5,
+            "title": "1",
+            "content": "1",
+            "author": "1",
+            "date": "2025-06-15",
+            "likes": 0,
+            "comments": []
+        },
+        {
+            "id": 6,
+            "title": "2",
+            "content": "2",
+            "author": "2",
+            "date": "2025-06-15",
+            "likes": 0,
+            "comments": []
         }
     ]
 }

@@ -11,7 +11,7 @@ CORS(app)  # This will enable CORS for all routes
 
 # Swagger Configuration
 SWAGGER_URL = '/api/docs'  # URL for Swagger UI
-API_URL = '/static/masterblog.json'  # URL to Swagger definition file
+API_URL = '/data/masterblog.json'  # URL to Swagger definition file
 
 # Register Swagger UI Blueprint
 swagger_ui_blueprint = get_swaggerui_blueprint(
@@ -55,11 +55,38 @@ def save_posts(posts_data):
         return False
 
 
+def search_posts(query=None):
+    """Search posts by query string"""
+    try:
+        if not os.path.exists(POSTS_FILE):
+            return {"posts": []}
+        with open(POSTS_FILE, 'r') as file:
+            data = json.load(file)
+            if not query:
+                return data
+
+            filtered_posts = []
+            query = query.lower()
+            for post in data['posts']:
+                if (query in post['title'].lower() or
+                    query in post['content'].lower() or
+                    query in post['author'].lower()):
+                    filtered_posts.append(post)
+            return {"posts": filtered_posts}
+    except Exception as e:
+        print(f"Error searching posts: {e}")
+        return {"posts": []}
+
+
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
+    # Get pagination parameters
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 5))  # 5 posts per page by default
+
     # Get sorting parameters from URL
     sort_field = request.args.get('sort')
-    sort_direction = request.args.get('direction', 'asc')  # Default is ascending
+    sort_direction = request.args.get('direction', 'asc')
 
     # Validate parameters
     valid_sort_fields = ['title', 'content', 'author', 'date']
@@ -82,46 +109,85 @@ def get_posts():
             )
         else:
             sorted_posts.sort(
-                key=lambda x: x[sort_field].lower(),  # Case-insensitive sorting
-                reverse=(sort_direction == 'desc')  # Reverse order for 'desc'
+                key=lambda x: x[sort_field].lower(),
+                reverse=(sort_direction == 'desc')
             )
 
-    return jsonify(sorted_posts)
+    # Calculate pagination
+    total_posts = len(sorted_posts)
+    total_pages = (total_posts + per_page - 1) // per_page  # Ceiling division
+
+    # Validate page number
+    if page < 1:
+        page = 1
+    elif page > total_pages and total_pages > 0:
+        page = total_pages
+
+    # Get posts for current page
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    current_posts = sorted_posts[start_idx:end_idx]
+
+    return jsonify({
+        'posts': current_posts,
+        'pagination': {
+            'total_posts': total_posts,
+            'total_pages': total_pages,
+            'current_page': page,
+            'per_page': per_page,
+            'has_next': page < total_pages,
+            'has_prev': page > 1
+        }
+    })
 
 
 @app.route('/api/posts', methods=['POST'])
 def create_post():
-    # Get data from request body
-    data = request.get_json()
+    try:
+        # Get data from request body
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
 
-    # Validate required fields
-    required_fields = ['title', 'content', 'author']
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
+        # Validate required fields
+        required_fields = ['title', 'content', 'author']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+        if missing_fields:
+            return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
 
-    # Load existing posts
-    posts_data = load_posts()
+        # Validate data types
+        if not isinstance(data.get('title'), str) or not isinstance(data.get('content'), str) or not isinstance(data.get('author'), str):
+            return jsonify({'error': 'title, content, and author must be strings'}), 400
 
-    # Generate new ID (max ID + 1)
-    new_id = max([post['id'] for post in posts_data['posts']] + [0]) + 1
+        # Load existing posts
+        posts_data = load_posts()
+        if not isinstance(posts_data, dict) or 'posts' not in posts_data:
+            posts_data = {'posts': []}
 
-    # Create new post
-    new_post = {
-        'id': new_id,
-        'title': data['title'],
-        'content': data['content'],
-        'author': data['author'],
+        # Generate new ID (max ID + 1)
+        existing_ids = [post.get('id', 0) for post in posts_data['posts']]
+        new_id = max(existing_ids + [0]) + 1
+
+        # Create new post
+        new_post = {
+            'id': new_id,
+            'title': data['title'].strip(),
+            'content': data['content'].strip(),
+            'author': data['author'].strip(),
             'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
-        'likes': 0  # Initialize likes
-    }
+            'likes': 0,
+            'comments': []
+        }
 
-    # Add post and save
-    posts_data['posts'].append(new_post)
-    if not save_posts(posts_data):
-        return jsonify({'error': 'Failed to save post'}), 500
+        # Add post and save
+        posts_data['posts'].append(new_post)
+        if not save_posts(posts_data):
+            return jsonify({'error': 'Failed to save post'}), 500
 
-    return jsonify(new_post), 201
+        return jsonify(new_post), 201
+
+    except Exception as e:
+        return jsonify({'error': f'Error creating post: {str(e)}'}), 500
 
 
 @app.route('/api/posts/<int:post_id>', methods=['DELETE'])
@@ -186,26 +252,25 @@ def update_post(post_id):
 
 
 @app.route('/api/posts/search', methods=['GET'])
-def search_posts():
+def search_posts_query():
     # Get search parameters from URL
-    title_query = request.args.get('title', '').lower()
-    content_query = request.args.get('content', '').lower()
-    author_query = request.args.get('author', '').lower()
-    date_query = request.args.get('date', '')
+    query = request.args.get('query', '')
 
     # Load posts from file
     posts_data = load_posts()
 
     # Filter posts based on search criteria
-    matching_posts = []
-    for post in posts_data['posts']:
-        if ((title_query and title_query in post['title'].lower()) or
-            (content_query and content_query in post['content'].lower()) or
-            (author_query and author_query in post['author'].lower()) or
-            (date_query and date_query in post['date'])):
-            matching_posts.append(post)
+    if query:
+        filtered_posts = []
+        query = query.lower()
+        for post in posts_data['posts']:
+            if (query in post['title'].lower() or
+                query in post['content'].lower() or
+                query in post['author'].lower()):
+                filtered_posts.append(post)
+        return jsonify({"posts": filtered_posts})
 
-    return jsonify(matching_posts)
+    return jsonify(posts_data)
 
 
 @app.route('/api/posts/<int:post_id>/like', methods=['POST'])
